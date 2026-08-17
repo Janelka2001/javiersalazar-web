@@ -22,7 +22,7 @@
 		"check": "astro check",
 		"check:assets": "node scripts/validate-photo-assets.mjs",
 		"check:output": "node scripts/validate-static-output.mjs",
-		"build": "node scripts/assert-site-readiness.mjs && astro build",
+		"build": "node scripts/assert-site-readiness.mjs && astro build && node scripts/prune-unreferenced-photo-originals.mjs",
 		"qa": "npm run check && npm run content:check && npm run check:assets && npm run build && node scripts/validate-seo.mjs && npm run check:output",
 		"qa:production": "SITE_READY=true npm run qa",
 		"preview": "astro preview",

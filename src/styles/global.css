@@ -33,7 +33,7 @@ body {
 	margin: 0;
 	background: var(--color-bg);
 	color: var(--color-text);
-	font-size: 0.875rem;
+	font-size: 0.9375rem;
 	line-height: 1.55;
 }
 
@@ -117,7 +117,7 @@ dd {
 .page-kicker {
 	margin-bottom: 0.7rem;
 	color: var(--color-muted);
-	font-size: 0.72rem;
+	font-size: 0.78rem;
 	letter-spacing: 0.1em;
 	text-transform: uppercase;
 }

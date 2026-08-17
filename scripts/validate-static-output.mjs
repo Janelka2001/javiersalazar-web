@@ -1,5 +1,6 @@
 import { readFile, readdir, stat } from 'node:fs/promises';
 import './load-project-env.mjs';
+import { findUnreferencedPhotoOriginals } from './prune-unreferenced-photo-originals.mjs';
 
 const projectRoot = new URL('../', import.meta.url);
 const distUrl = new URL('dist/', projectRoot);
@@ -32,6 +33,16 @@ const files = await listFiles(distUrl);
 const fileNames = new Set(files.map(outputName));
 const htmlFiles = files.filter((file) => file.pathname.endsWith('.html'));
 const problems = new Set();
+let archiveNavigationPages = 0;
+
+const orphanedPhotoOriginals = await findUnreferencedPhotoOriginals();
+if (orphanedPhotoOriginals.length > 0) {
+	const orphanedBytes = orphanedPhotoOriginals.reduce((total, original) => total + original.bytes, 0);
+	problems.add(
+		`salida: quedan ${orphanedPhotoOriginals.length} originales Astro sin referencias `
+		+ `(${(orphanedBytes / 1024 / 1024).toFixed(2)} MiB)`,
+	);
+}
 
 if (files.length > 20_000) {
 	problems.add(`salida: ${files.length} archivos; el límite de Pages es 20.000`);
@@ -44,6 +55,29 @@ for (const file of files) {
 	totalBytes += fileStat.size;
 	if (fileStat.size > largest.bytes) largest = { name: outputName(file), bytes: fileStat.size };
 	if (fileStat.size > 25 * 1024 * 1024) problems.add(`${outputName(file)}: supera 25 MiB`);
+}
+
+if (!fileNames.has('_headers')) {
+	problems.add('_headers: configuración de seguridad y caché ausente');
+} else {
+	const headers = await readFile(new URL('_headers', distUrl), 'utf8');
+	const requiredHeaderRules = [
+		[/Content-Security-Policy:[^\n]*frame-ancestors 'none'/, 'CSP con frame-ancestors'],
+		[/Content-Security-Policy:[^\n]*script-src 'self' 'unsafe-inline'/, 'CSP compatible con scripts inline de Astro'],
+		[/Content-Security-Policy:[^\n]*style-src 'self' 'unsafe-inline'/, 'CSP compatible con estilos inline de Astro'],
+		[/Strict-Transport-Security:\s*max-age=\d+/, 'HSTS'],
+		[/Permissions-Policy:/, 'Permissions-Policy'],
+		[/Referrer-Policy:\s*strict-origin-when-cross-origin/, 'Referrer-Policy'],
+		[/X-Content-Type-Options:\s*nosniff/, 'X-Content-Type-Options'],
+		[/X-Frame-Options:\s*DENY/, 'X-Frame-Options'],
+		[/\/_astro\/\*[\s\S]*?Cache-Control:\s*public,\s*max-age=31536000,\s*immutable/, 'caché inmutable de /_astro/*'],
+		[/https:\/\/:project\.pages\.dev\/\*[\s\S]*?X-Robots-Tag:\s*noindex/, 'noindex del dominio pages.dev'],
+		[/https:\/\/:version\.:project\.pages\.dev\/\*[\s\S]*?X-Robots-Tag:\s*noindex/, 'noindex de previews pages.dev'],
+	];
+
+	for (const [pattern, label] of requiredHeaderRules) {
+		if (!pattern.test(headers)) problems.add(`_headers: falta ${label}`);
+	}
 }
 
 const expectedPhotoFiles = photos.map(
@@ -133,12 +167,34 @@ for (const file of htmlFiles) {
 		: `/${relative.replace(/index\.html$/, '')}`;
 	const pageUrl = new URL(routePath, siteOrigin);
 	const rawTargets = [];
+	const archiveNavigationTag = html.match(/<details\b[^>]*\bdata-archive-navigation\b[^>]*>/)?.[0];
+
+	if (archiveNavigationTag) {
+		archiveNavigationPages += 1;
+		if (!/\sopen(?:\s|=|>)/.test(archiveNavigationTag)) {
+			problems.add(`${relative}: la navegación Explorar se ha compilado cerrada`);
+		}
+	} else if (relative === 'galeria/index.html') {
+		problems.add(`${relative}: falta la navegación Explorar`);
+	}
 
 	for (const match of html.matchAll(/\s(?:href|src)="([^"]+)"/g)) rawTargets.push(match[1]);
 	for (const match of html.matchAll(/\ssrcset="([^"]+)"/g)) {
 		for (const candidate of match[1].split(',')) {
 			const [target] = candidate.trim().split(/\s+/);
 			if (target) rawTargets.push(target);
+		}
+	}
+
+	for (const match of html.matchAll(/<meta (?:property="og:image"|name="twitter:image") content="([^"]+)">/g)) {
+		try {
+			const socialImage = new URL(match[1].replaceAll('&amp;', '&'), pageUrl);
+			const expected = pageFile(socialImage.pathname);
+			if (!fileNames.has(expected)) {
+				problems.add(`${relative}: imagen social ausente ${socialImage.pathname}`);
+			}
+		} catch {
+			problems.add(`${relative}: URL de imagen social no válida ${match[1]}`);
 		}
 	}
 
@@ -158,6 +214,10 @@ for (const file of htmlFiles) {
 		const expected = pageFile(resolved.pathname);
 		if (!fileNames.has(expected)) problems.add(`${relative}: destino interno ausente ${resolved.pathname}`);
 	}
+}
+
+if (archiveNavigationPages === 0) {
+	problems.add('salida: ninguna página incluye la navegación Explorar');
 }
 
 const sitemap = await readFile(new URL('sitemap-0.xml', distUrl), 'utf8');

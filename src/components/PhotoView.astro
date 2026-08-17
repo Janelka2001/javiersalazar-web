@@ -1,6 +1,7 @@
 ---
 import { getImage, Picture } from 'astro:assets';
 import type { Photo } from '../lib/photos';
+import { categoryLabel } from '../lib/galleryArchive';
 import { formatLegacyDate, legacyDateTime, photoHref } from '../lib/photos';
 
 interface Props {
@@ -10,17 +11,30 @@ interface Props {
 	priority?: boolean;
 }
 
-const { photo, older, newer, priority = false } = Astro.props;
+const { photo, older, newer, priority = true } = Astro.props;
 const lightboxId = `photo-lightbox-${photo.legacyId}`;
+const isPortrait = photo.asset.height > photo.asset.width;
+const aspectRatio = photo.asset.width / photo.asset.height;
+const viewportHeightWidth = `${Number((aspectRatio * 100).toFixed(2))}vh`;
+const frameHeightOffset = `${Number((aspectRatio * 9).toFixed(2))}rem`;
+const lightboxHeightOffset = `${Number((aspectRatio * 2).toFixed(2))}rem`;
+const photoWidths = isPortrait
+	? [320, 480, 640, 768, 1200]
+	: [320, 480, 768, 930, 1200, 1600];
+const lightboxWidths = isPortrait
+	? [480, 640, 768, 1200]
+	: [480, 768, 1200, 1600];
+const zoomMaxWidth = lightboxWidths.at(-1) ?? 1600;
+const photoSizes = isPortrait
+	? `(max-width: 47.49rem) calc(100vw - 3rem), min(930px, calc(${viewportHeightWidth} - ${frameHeightOffset}))`
+	: '(max-width: 61rem) calc(100vw - 3rem), 930px';
+const zoomSizes = `min(calc(100vw - 2rem), calc(${viewportHeightWidth} - ${lightboxHeightOffset}))`;
 const zoomFallback = await getImage({
 	src: photo.asset,
-	width: Math.min(photo.asset.width, 1600),
+	width: Math.min(photo.asset.width, zoomMaxWidth),
 	format: 'jpg',
 	quality: 88,
 });
-const zoomSizes = photo.asset.height > photo.asset.width
-	? `(max-width: 47.49rem) calc(100vw - 2rem), ${Math.round((photo.asset.width / photo.asset.height) * 100)}vh`
-	: 'calc(100vw - 2rem)';
 const descriptionParagraphs = (photo.description || 'Una fotografía del archivo de Javier Salazar.')
 	.split(/\n{2,}/u)
 	.map((paragraph) => paragraph.trim())
@@ -32,6 +46,7 @@ const facts = [
 	{ label: 'Exposición', value: photo.exif.exposure },
 	{ label: 'ISO', value: photo.exif.iso },
 ].filter((fact) => fact.value);
+const tagSearchHref = (tag: string) => `/buscar/?${new URLSearchParams({ q: tag }).toString()}`;
 ---
 
 <article class="photo-page">
@@ -60,8 +75,8 @@ const facts = [
 					src={photo.asset}
 					alt={photo.alt || photo.title}
 					formats={['webp']}
-					widths={[320, 480, 768, 930, 1200, 1600]}
-					sizes="(max-width: 61rem) calc(100vw - 3rem), 930px"
+					widths={photoWidths}
+					sizes={photoSizes}
 					loading={priority ? 'eager' : 'lazy'}
 					decoding="async"
 					fetchpriority={priority ? 'high' : 'auto'}
@@ -91,7 +106,7 @@ const facts = [
 				src={photo.asset}
 				alt={photo.alt || photo.title}
 				formats={['webp']}
-				widths={[480, 768, 1200, 1600]}
+				widths={lightboxWidths}
 				sizes={zoomSizes}
 				loading="lazy"
 				decoding="async"
@@ -115,8 +130,28 @@ const facts = [
 
 			{(photo.categories.length > 0 || photo.tags.length > 0) && (
 				<div class="taxonomy" aria-label="Clasificación de la fotografía">
-					{photo.categories.length > 0 && <p><strong>Categorías:</strong> {photo.categories.join(', ')}</p>}
-					{photo.tags.length > 0 && <p><strong>Etiquetas:</strong> {photo.tags.slice(0, 10).join(', ')}</p>}
+					{photo.categories.length > 0 && (
+						<p>
+							<strong>Categorías:</strong>{' '}
+							{photo.categories.map((category, index) => (
+								<>
+									<a href={`/categoria/${category}/`}>{categoryLabel(category)}</a>
+									{index < photo.categories.length - 1 && ', '}
+								</>
+							))}
+						</p>
+					)}
+					{photo.tags.length > 0 && (
+						<p>
+							<strong>Etiquetas:</strong>{' '}
+							{photo.tags.slice(0, 10).map((tag, index, visibleTags) => (
+								<>
+									<a href={tagSearchHref(tag)}>{tag}</a>
+									{index < visibleTags.length - 1 && ', '}
+								</>
+							))}
+						</p>
+					)}
 				</div>
 			)}
 		</div>
@@ -193,7 +228,7 @@ const facts = [
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		min-height: 2.75rem;
-		font-size: 0.67rem;
+		font-size: 0.75rem;
 		text-transform: uppercase;
 	}
 
@@ -233,6 +268,10 @@ const facts = [
 		color: white;
 	}
 
+	.photo-zoom-link:focus-visible {
+		outline-offset: 0.25rem;
+	}
+
 	.photo-zoom-label {
 		position: absolute;
 		right: 0.65rem;
@@ -246,7 +285,7 @@ const facts = [
 		border: 1px solid rgb(255 255 255 / 55%);
 		background: rgb(15 15 15 / 82%);
 		box-shadow: 0 0.15rem 0.5rem rgb(0 0 0 / 24%);
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 		letter-spacing: 0.04em;
 		line-height: 1;
 		text-transform: uppercase;
@@ -362,7 +401,7 @@ const facts = [
 	.photo-caption time {
 		flex: none;
 		color: var(--color-muted);
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 	}
 
 	.photo-details {
@@ -393,11 +432,15 @@ const facts = [
 		padding-top: 0.8rem;
 		border-top: 1px solid var(--color-rule);
 		color: var(--color-muted);
-		font-size: 0.75rem;
+		font-size: 0.8rem;
 	}
 
 	.taxonomy p {
 		margin-bottom: 0.2rem;
+	}
+
+	.taxonomy a {
+		text-decoration: underline;
 	}
 
 	.exif-panel {
@@ -419,7 +462,7 @@ const facts = [
 
 	.exif-panel dt {
 		color: var(--color-muted);
-		font-size: 0.71rem;
+		font-size: 0.75rem;
 		text-transform: uppercase;
 	}
 
