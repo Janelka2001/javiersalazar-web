@@ -1,0 +1,145 @@
+---
+import { Image } from 'astro:assets';
+import brandLogo from '../assets/brand/javier-salazar-logo.png';
+
+interface Props {
+	pathname: string;
+}
+
+const { pathname } = Astro.props;
+
+const navigation = [
+	{ href: '/', label: 'Última foto', active: pathname === '/' || pathname.startsWith('/fotografia/') },
+	{
+		href: '/galeria/',
+		label: 'Galería',
+		active: pathname.startsWith('/galeria/') || pathname.startsWith('/categoria/') || pathname.startsWith('/archivo/'),
+	},
+	{ href: '/buscar/', label: 'Buscar', active: pathname.startsWith('/buscar/') },
+	{ href: '/sobre-mi/', label: 'Sobre mí', active: pathname.startsWith('/sobre-mi/') },
+];
+---
+
+<header class="site-header shell">
+	<a class="brand" href="/" aria-label="Javier Salazar, inicio">
+		<Image
+			src={brandLogo}
+			alt=""
+			format="png"
+			widths={[200, 232, 400, 464]}
+			sizes="(max-width: 47.49rem) 200px, 232px"
+			loading="eager"
+			decoding="async"
+			quality={90}
+		/>
+	</a>
+
+	<div class="header-aside">
+		<nav aria-label="Navegación principal">
+			<ul class="primary-nav">
+				{navigation.map((item, index) => (
+					<>
+						<li>
+							<a href={item.href} aria-current={item.active ? 'page' : undefined}>{item.label}</a>
+						</li>
+						{index < navigation.length - 1 && <li class="separator" aria-hidden="true">·</li>}
+					</>
+				))}
+			</ul>
+		</nav>
+		<p class="tagline">El mundo a través de mis ojos.</p>
+	</div>
+</header>
+
+<style>
+	.site-header {
+		display: flex;
+		align-items: start;
+		justify-content: space-between;
+		gap: 1.5rem;
+		min-height: 3rem;
+		padding-top: 0.35rem;
+		padding-bottom: 0.25rem;
+	}
+
+	.brand {
+		display: block;
+		flex: 0 1 14.5rem;
+		inline-size: min(14.5rem, 38vw);
+		max-inline-size: 100%;
+		line-height: 0;
+	}
+
+	.brand :global(picture),
+	.brand :global(img) {
+		display: block;
+		width: 100%;
+		height: auto;
+	}
+
+	.header-aside {
+		flex: none;
+		padding-top: 0.1rem;
+		text-align: right;
+	}
+
+	.primary-nav {
+		display: flex;
+		align-items: center;
+		justify-content: end;
+		gap: 0.42rem;
+		margin: 0;
+		padding: 0;
+		font-size: 0.72rem;
+		list-style: none;
+		text-transform: uppercase;
+	}
+
+	.primary-nav a[aria-current='page'] {
+		color: var(--color-text);
+		text-decoration: underline;
+		text-decoration-color: var(--color-border);
+	}
+
+	.separator {
+		color: var(--color-border);
+	}
+
+	.tagline {
+		margin: 0.18rem 0 0;
+		color: var(--color-muted);
+		font-size: 0.6875rem;
+		letter-spacing: 0.125rem;
+		line-height: 1.3;
+		text-transform: lowercase;
+	}
+
+	@media (max-width: 47.49rem) {
+		.site-header {
+			display: block;
+			padding-top: 0.6rem;
+			padding-bottom: 0.7rem;
+		}
+
+		.brand {
+			inline-size: min(100%, 12.5rem);
+		}
+
+		.header-aside {
+			padding-top: 0.35rem;
+			text-align: left;
+		}
+
+		.primary-nav {
+			justify-content: start;
+			flex-wrap: wrap;
+		}
+	}
+
+	@media (max-width: 23rem) {
+		.primary-nav {
+			gap: 0.3rem;
+			font-size: 0.68rem;
+		}
+	}
+</style>

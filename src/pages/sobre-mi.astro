@@ -1,0 +1,129 @@
+---
+import { Picture } from 'astro:assets';
+import aboutImage from '../assets/about/javier-salazar.jpg';
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const pageUrl = new URL('/sobre-mi/', Astro.site!);
+const siteUrl = new URL('/', Astro.site!);
+const structuredData = [
+	{
+		'@type': 'ProfilePage',
+		'@id': `${pageUrl.href}#webpage`,
+		url: pageUrl.href,
+		name: 'Sobre Javier Salazar',
+		description: 'Biografía, trayectoria, exposiciones y premios del fotógrafo Javier Salazar Martínez.',
+		inLanguage: 'es',
+		isPartOf: { '@id': `${siteUrl.href}#website` },
+		mainEntity: { '@id': `${siteUrl.href}#javier-salazar` },
+		breadcrumb: { '@id': `${pageUrl.href}#migas-de-pan` },
+	},
+	{
+		'@type': 'BreadcrumbList',
+		'@id': `${pageUrl.href}#migas-de-pan`,
+		itemListElement: [
+			{ '@type': 'ListItem', position: 1, name: 'Inicio', item: siteUrl.href },
+			{ '@type': 'ListItem', position: 2, name: 'Sobre mí', item: pageUrl.href },
+		],
+	},
+];
+---
+
+<BaseLayout
+	title="Sobre mí"
+	description="Biografía, trayectoria, exposiciones y premios del fotógrafo Javier Salazar Martínez."
+	type="profile"
+	canonical="/sobre-mi/"
+	{structuredData}
+>
+	<div class="page-intro">
+		<h1 class="page-title">Sobre mí</h1>
+	</div>
+
+	<div class="about-frame">
+		<Picture
+			src={aboutImage}
+			alt="Autorretrato de Javier Salazar con una cámara, reflejado en el espejo retrovisor de un coche"
+			formats={['webp']}
+			widths={[480, 768, 930]}
+			sizes="(max-width: 61rem) calc(100vw - 3rem), 930px"
+			loading="eager"
+			fetchpriority="high"
+			quality={88}
+		/>
+	</div>
+
+	<article class="about-content surface-panel">
+		<p>Me llamo <strong>Javier Salazar Martínez</strong>. Nací en Madrid en 1978 y soy maestro de Educación Infantil y Primaria, técnico superior en Administración de Sistemas y fotógrafo.</p>
+
+		<p>Descubrí mi vocación artística por la fotografía en el año 2000, con una Kodak DC4800. Tras volver a una compacta en 2008, pasé por las Canon EOS 450D y 50D hasta llegar en 2010 a la EOS 5D Mark II y el formato completo.</p>
+
+		<p>Siempre con el equipo a cuestas, aprovecho cualquier ocasión para disfrutar de la fotografía. En aquella etapa también me acerqué al fotoperiodismo de boda.</p>
+
+		<p>La comunidad fotográfica de Flickr en Granada y el Colectivo Granada Foto me permitieron conocer a mucha y muy buena gente, compartir experiencias y aprender de todo y de todos. En este mundo siempre estamos en continuo aprendizaje.</p>
+
+		<section aria-labelledby="exposiciones">
+			<h2 id="exposiciones">Exposiciones</h2>
+			<ul>
+				<li>«Villanueva Mesía», exposición colectiva del Ayuntamiento de Villanueva Mesía y el Colectivo Granada Foto, 2009.</li>
+				<li>«Íllora», exposición colectiva del Ayuntamiento de Íllora y el Colectivo Granada Foto, 2010.</li>
+				<li>«Huétor Vega es de Cine», exposición fotográfica colectiva.</li>
+			</ul>
+		</section>
+
+		<section aria-labelledby="premios">
+			<h2 id="premios">Premios</h2>
+			<ul>
+				<li>Accésit en el II Safari Fotográfico Fundación Caja Rural de Granada por «Estrella a los pies de la Alhambra».</li>
+				<li>Accésit en el IV Safari Fotográfico Fundación Caja Rural de Granada por «Rojo Atardecer».</li>
+				<li>Segundo premio del Concurso Día del Agua de Granada por «Lágrimas».</li>
+			</ul>
+		</section>
+
+		<section aria-labelledby="contacto">
+			<h2 id="contacto">Contacto y derechos</h2>
+			<p>Para consultas o solicitudes de autorización puedes escribir a <a href="mailto:javier@javiersalazar.es">javier@javiersalazar.es</a>. Consulta también la información sobre <a href="/derechos-y-contacto/">uso y derechos de las fotografías</a>.</p>
+		</section>
+	</article>
+</BaseLayout>
+
+<style>
+	.about-frame {
+		padding: 0.5rem;
+		border: 1px solid var(--color-border);
+		background: var(--color-surface);
+	}
+
+	.about-frame :global(img) {
+		width: 100%;
+		border: 1px solid var(--color-border);
+	}
+
+	.about-content {
+		padding: clamp(1rem, 3vw, 1.5rem);
+	}
+
+	.about-content > * {
+		max-width: 70ch;
+	}
+
+	.about-content h2 {
+		margin: 1.6rem 0 0.5rem;
+		font-size: 0.86rem;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	.about-content ul {
+		padding-left: 1.15rem;
+	}
+
+	.about-content li {
+		margin-bottom: 0.45rem;
+	}
+
+	@media (max-width: 39.99rem) {
+		.about-frame {
+			padding: 0.3rem;
+		}
+	}
+</style>

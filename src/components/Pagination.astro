@@ -1,0 +1,167 @@
+---
+import { paginatedHref } from '../lib/galleryArchive';
+
+interface Props {
+	baseHref: string;
+	currentPage: number;
+	lastPage: number;
+	label?: string;
+}
+
+const {
+	baseHref,
+	currentPage,
+	lastPage,
+	label = 'Páginas de fotografías',
+} = Astro.props;
+
+const visiblePageNumbers = Array.from(new Set([
+	1,
+	lastPage,
+	currentPage - 2,
+	currentPage - 1,
+	currentPage,
+	currentPage + 1,
+	currentPage + 2,
+])).filter((pageNumber) => pageNumber >= 1 && pageNumber <= lastPage).sort((a, b) => a - b);
+
+const pageItems: Array<number | string> = [];
+
+for (const [index, pageNumber] of visiblePageNumbers.entries()) {
+	const previousPageNumber = visiblePageNumbers[index - 1];
+	if (previousPageNumber && pageNumber - previousPageNumber > 1) {
+		pageItems.push(`ellipsis-${previousPageNumber}`);
+	}
+	pageItems.push(pageNumber);
+}
+---
+
+{lastPage > 1 && (
+	<nav class="pagination" aria-label={label}>
+		<p class="pagination-status">Página {currentPage} de {lastPage}</p>
+		<div class="pagination-controls">
+			{currentPage > 1 ? (
+				<a class="pagination-direction" href={paginatedHref(baseHref, currentPage - 1)} rel="prev">
+					<span aria-hidden="true">←</span> Anterior
+				</a>
+			) : (
+				<span class="pagination-direction is-disabled" aria-disabled="true"><span aria-hidden="true">←</span> Anterior</span>
+			)}
+
+			<ol class="pagination-pages">
+				{pageItems.map((item) => typeof item === 'number' ? (
+					<li>
+						{item === currentPage ? (
+							<span class="pagination-page is-current" aria-current="page">
+								<span class="visually-hidden">Página </span>{item}
+							</span>
+						) : (
+							<a class="pagination-page" href={paginatedHref(baseHref, item)} aria-label={`Ir a la página ${item}`}>{item}</a>
+						)}
+					</li>
+				) : (
+					<li class="pagination-ellipsis" aria-hidden="true">…</li>
+				))}
+			</ol>
+
+			{currentPage < lastPage ? (
+				<a class="pagination-direction" href={paginatedHref(baseHref, currentPage + 1)} rel="next">
+					Siguiente <span aria-hidden="true">→</span>
+				</a>
+			) : (
+				<span class="pagination-direction is-disabled" aria-disabled="true">Siguiente <span aria-hidden="true">→</span></span>
+			)}
+		</div>
+	</nav>
+)}
+
+<style>
+	.pagination {
+		margin-top: 1.75rem;
+		padding-top: 0.85rem;
+		border-top: 1px solid var(--color-rule);
+	}
+
+	.pagination-status {
+		margin-bottom: 0.55rem;
+		color: var(--color-muted);
+		font-size: 0.68rem;
+		letter-spacing: 0.08em;
+		text-align: center;
+		text-transform: uppercase;
+	}
+
+	.pagination-controls {
+		display: grid;
+		grid-template-columns: minmax(5.5rem, 1fr) auto minmax(5.5rem, 1fr);
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.pagination-direction {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		min-height: 2.25rem;
+		font-size: 0.72rem;
+		text-transform: uppercase;
+	}
+
+	.pagination-direction:last-child {
+		justify-self: end;
+	}
+
+	.pagination-direction.is-disabled {
+		color: var(--color-border);
+	}
+
+	.pagination-pages {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.2rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.pagination-page {
+		display: grid;
+		min-width: 2.1rem;
+		min-height: 2.1rem;
+		place-items: center;
+		border: 1px solid transparent;
+		font-size: 0.72rem;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.pagination-page:hover,
+	.pagination-page:focus-visible {
+		border-color: var(--color-border);
+	}
+
+	.pagination-page.is-current {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+
+	.pagination-ellipsis {
+		padding-inline: 0.15rem;
+		color: var(--color-muted);
+	}
+
+	@media (max-width: 39.99rem) {
+		.pagination-controls {
+			grid-template-columns: 1fr 1fr;
+		}
+
+		.pagination-pages {
+			grid-column: 1 / -1;
+			grid-row: 1;
+		}
+
+		.pagination-direction {
+			grid-row: 2;
+		}
+	}
+</style>

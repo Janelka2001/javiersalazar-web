@@ -1,0 +1,36 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Página no encontrada" description="La página solicitada no existe." noindex canonical={false}>
+	<section class="not-found surface-panel">
+		<p class="code">404</p>
+		<h1>Página no encontrada</h1>
+		<p>Puede que esta fotografía todavía no se haya incorporado al nuevo archivo.</p>
+		<a href="/galeria/">Volver a la galería</a>
+	</section>
+</BaseLayout>
+
+<style>
+	.not-found {
+		margin-top: 2rem;
+		padding: clamp(1.5rem, 5vw, 3rem);
+		text-align: center;
+	}
+
+	.code {
+		margin-bottom: 0;
+		color: var(--color-accent);
+		font-family: var(--font-brand);
+		font-size: 3rem;
+	}
+
+	.not-found h1 {
+		font-family: var(--font-brand);
+		font-weight: 400;
+	}
+
+	.not-found a {
+		text-decoration: underline;
+	}
+</style>

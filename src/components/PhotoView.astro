@@ -1,0 +1,461 @@
+---
+import { getImage, Picture } from 'astro:assets';
+import type { Photo } from '../lib/photos';
+import { formatLegacyDate, legacyDateTime, photoHref } from '../lib/photos';
+
+interface Props {
+	photo: Photo;
+	older?: Photo;
+	newer?: Photo;
+	priority?: boolean;
+}
+
+const { photo, older, newer, priority = false } = Astro.props;
+const lightboxId = `photo-lightbox-${photo.legacyId}`;
+const zoomFallback = await getImage({
+	src: photo.asset,
+	width: Math.min(photo.asset.width, 1600),
+	format: 'jpg',
+	quality: 88,
+});
+const zoomSizes = photo.asset.height > photo.asset.width
+	? `(max-width: 47.49rem) calc(100vw - 2rem), ${Math.round((photo.asset.width / photo.asset.height) * 100)}vh`
+	: 'calc(100vw - 2rem)';
+const descriptionParagraphs = (photo.description || 'Una fotografía del archivo de Javier Salazar.')
+	.split(/\n{2,}/u)
+	.map((paragraph) => paragraph.trim())
+	.filter(Boolean);
+const facts = [
+	{ label: 'Cámara', value: photo.exif.model || photo.exif.make },
+	{ label: 'Longitud focal', value: photo.exif.focalLength },
+	{ label: 'Apertura', value: photo.exif.aperture },
+	{ label: 'Exposición', value: photo.exif.exposure },
+	{ label: 'ISO', value: photo.exif.iso },
+].filter((fact) => fact.value);
+---
+
+<article class="photo-page">
+	<nav class="photo-pager" aria-label="Navegación entre fotografías">
+		{older ? (
+			<a class="pager-link pager-link--older" href={photoHref(older)} rel="prev">
+				<span aria-hidden="true">←</span> Anterior
+			</a>
+		) : <span></span>}
+		{newer && (
+			<a class="pager-link pager-link--newer" href={photoHref(newer)} rel="next">
+				Siguiente <span aria-hidden="true">→</span>
+			</a>
+		)}
+	</nav>
+
+	<figure class="photo-figure">
+		<div class="photo-frame">
+			<a
+				class="photo-zoom-link"
+				href={zoomFallback.src}
+				data-lightbox-target={lightboxId}
+				aria-label={`Ampliar fotografía: ${photo.title}`}
+			>
+				<Picture
+					src={photo.asset}
+					alt={photo.alt || photo.title}
+					formats={['webp']}
+					widths={[320, 480, 768, 930, 1200, 1600]}
+					sizes="(max-width: 61rem) calc(100vw - 3rem), 930px"
+					loading={priority ? 'eager' : 'lazy'}
+					decoding="async"
+					fetchpriority={priority ? 'high' : 'auto'}
+					quality={88}
+				/>
+				<span class="photo-zoom-label" aria-hidden="true">
+					<span class="photo-zoom-icon">＋</span>
+					Ampliar
+				</span>
+			</a>
+		</div>
+
+		<figcaption class="photo-caption">
+			<h1>{photo.title}</h1>
+			<time datetime={legacyDateTime(photo.publishedAtLegacy)}>{formatLegacyDate(photo.publishedAtLegacy)}</time>
+		</figcaption>
+	</figure>
+
+	<dialog
+		id={lightboxId}
+		class="photo-lightbox"
+		data-photo-lightbox
+		aria-label={`Fotografía ampliada: ${photo.title}`}
+	>
+		<div class="photo-lightbox-content">
+			<Picture
+				src={photo.asset}
+				alt={photo.alt || photo.title}
+				formats={['webp']}
+				widths={[480, 768, 1200, 1600]}
+				sizes={zoomSizes}
+				loading="lazy"
+				decoding="async"
+				quality={88}
+			/>
+			<form method="dialog" class="photo-lightbox-close-form">
+				<button class="photo-lightbox-close" type="submit" autofocus>
+					<span aria-hidden="true">×</span>
+					Cerrar
+				</button>
+			</form>
+		</div>
+	</dialog>
+
+	<section class="photo-details surface-panel" aria-labelledby="detalles-fotografia">
+		<div class="photo-notes">
+			<h2 id="detalles-fotografia">Sobre la fotografía</h2>
+			<div class="photo-description">
+				{descriptionParagraphs.map((paragraph) => <p>{paragraph}</p>)}
+			</div>
+
+			{(photo.categories.length > 0 || photo.tags.length > 0) && (
+				<div class="taxonomy" aria-label="Clasificación de la fotografía">
+					{photo.categories.length > 0 && <p><strong>Categorías:</strong> {photo.categories.join(', ')}</p>}
+					{photo.tags.length > 0 && <p><strong>Etiquetas:</strong> {photo.tags.slice(0, 10).join(', ')}</p>}
+				</div>
+			)}
+		</div>
+
+		{facts.length > 0 && (
+			<div class="exif-panel">
+				<h2>Cámara y exposición</h2>
+				<dl>
+					{facts.map((fact) => (
+						<div>
+							<dt>{fact.label}</dt>
+							<dd>{fact.value}</dd>
+						</div>
+					))}
+				</dl>
+			</div>
+		)}
+	</section>
+</article>
+
+<script>
+	for (const trigger of document.querySelectorAll<HTMLAnchorElement>('[data-lightbox-target]')) {
+		const targetId = trigger.dataset.lightboxTarget;
+		const dialog = targetId ? document.getElementById(targetId) as HTMLDialogElement | null : null;
+
+		if (!dialog || typeof dialog.showModal !== 'function') continue;
+
+		trigger.setAttribute('aria-haspopup', 'dialog');
+		trigger.setAttribute('aria-controls', dialog.id);
+
+		let activeTrigger: HTMLAnchorElement | null = null;
+
+		trigger.addEventListener('click', (event) => {
+			if (
+				event.defaultPrevented
+				|| event.button !== 0
+				|| event.metaKey
+				|| event.ctrlKey
+				|| event.shiftKey
+				|| event.altKey
+			) return;
+
+			event.preventDefault();
+			activeTrigger = trigger;
+			dialog.showModal();
+			document.documentElement.classList.add('photo-lightbox-open');
+		});
+
+		dialog.addEventListener('click', (event) => {
+			if (event.target === dialog) dialog.close();
+		});
+
+		dialog.addEventListener('keydown', (event) => {
+			if (event.key !== 'Escape') return;
+
+			event.preventDefault();
+			dialog.close();
+		});
+
+		dialog.addEventListener('close', () => {
+			document.documentElement.classList.remove('photo-lightbox-open');
+			activeTrigger?.focus({ preventScroll: true });
+			activeTrigger = null;
+		});
+	}
+</script>
+
+<style>
+	.photo-page {
+		padding-top: 0.55rem;
+	}
+
+	.photo-pager {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		min-height: 2.75rem;
+		font-size: 0.67rem;
+		text-transform: uppercase;
+	}
+
+	.pager-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		min-width: 2.75rem;
+		min-height: 2.75rem;
+		letter-spacing: 0.04em;
+	}
+
+	.pager-link--newer {
+		justify-self: end;
+	}
+
+	.photo-figure {
+		margin: 0;
+	}
+
+	.photo-frame {
+		width: fit-content;
+		max-width: 100%;
+		margin-inline: auto;
+		padding: 0.5rem;
+		border: 1px solid var(--color-border);
+		background: var(--color-surface);
+	}
+
+	.photo-zoom-link {
+		position: relative;
+		display: block;
+		color: white;
+	}
+
+	.photo-zoom-link:hover {
+		color: white;
+	}
+
+	.photo-zoom-label {
+		position: absolute;
+		right: 0.65rem;
+		bottom: 0.65rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.35rem;
+		min-height: 2.75rem;
+		padding: 0.55rem 0.75rem;
+		border: 1px solid rgb(255 255 255 / 55%);
+		background: rgb(15 15 15 / 82%);
+		box-shadow: 0 0.15rem 0.5rem rgb(0 0 0 / 24%);
+		font-size: 0.7rem;
+		letter-spacing: 0.04em;
+		line-height: 1;
+		text-transform: uppercase;
+	}
+
+	.photo-zoom-icon {
+		font-size: 1rem;
+		line-height: 1;
+	}
+
+	.photo-frame :global(img) {
+		width: auto;
+		max-width: 100%;
+		max-height: calc(100vh - 9rem);
+		border: 1px solid var(--color-border);
+		object-fit: contain;
+	}
+
+	.photo-lightbox {
+		width: max-content;
+		max-width: calc(100vw - 2rem);
+		max-height: calc(100dvh - 2rem);
+		padding: 0;
+		border: 1px solid rgb(255 255 255 / 25%);
+		background: #111111;
+		box-shadow: 0 1rem 3rem rgb(0 0 0 / 45%);
+		color: white;
+		overflow: hidden;
+	}
+
+	.photo-lightbox::backdrop {
+		background: rgb(0 0 0 / 86%);
+	}
+
+	.photo-lightbox-content {
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		max-width: calc(100vw - 2rem);
+		max-height: calc(100dvh - 2rem);
+		background: #111111;
+	}
+
+	.photo-lightbox-content :global(picture) {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		max-width: 100%;
+		max-height: 100%;
+	}
+
+	.photo-lightbox-content :global(img) {
+		display: block;
+		width: auto;
+		max-width: calc(100vw - 2rem);
+		height: auto;
+		max-height: calc(100dvh - 2rem);
+		object-fit: contain;
+	}
+
+	.photo-lightbox-close-form {
+		position: absolute;
+		top: 0.5rem;
+		right: 0.5rem;
+		margin: 0;
+	}
+
+	.photo-lightbox-close {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.35rem;
+		min-width: 2.75rem;
+		min-height: 2.75rem;
+		padding: 0.5rem 0.75rem;
+		border: 1px solid rgb(255 255 255 / 65%);
+		border-radius: 0;
+		background: rgb(15 15 15 / 88%);
+		color: white;
+		font: inherit;
+		font-size: 0.7rem;
+		letter-spacing: 0.04em;
+		line-height: 1;
+		text-transform: uppercase;
+		cursor: pointer;
+	}
+
+	.photo-lightbox-close:hover {
+		background: #000000;
+	}
+
+	:global(html.photo-lightbox-open) {
+		overflow: hidden;
+	}
+
+	.photo-caption {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 0.6rem 0.25rem 0.7rem;
+		text-transform: uppercase;
+	}
+
+	.photo-caption h1 {
+		margin: 0;
+		font-size: 1rem;
+		font-weight: 400;
+		line-height: 1.25;
+	}
+
+	.photo-caption time {
+		flex: none;
+		color: var(--color-muted);
+		font-size: 0.7rem;
+	}
+
+	.photo-details {
+		display: grid;
+		grid-template-columns: minmax(0, 1.35fr) minmax(16rem, 0.65fr);
+		gap: 1.5rem;
+		padding: 1.1rem;
+	}
+
+	.photo-details h2 {
+		margin-bottom: 0.65rem;
+		font-size: 0.86rem;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	.photo-description p {
+		max-width: 70ch;
+		white-space: pre-line;
+	}
+
+	.photo-description p:last-child {
+		margin-bottom: 0;
+	}
+
+	.taxonomy {
+		margin-top: 1rem;
+		padding-top: 0.8rem;
+		border-top: 1px solid var(--color-rule);
+		color: var(--color-muted);
+		font-size: 0.75rem;
+	}
+
+	.taxonomy p {
+		margin-bottom: 0.2rem;
+	}
+
+	.exif-panel {
+		padding-left: 1.25rem;
+		border-left: 1px solid var(--color-border);
+	}
+
+	.exif-panel dl {
+		margin-bottom: 0;
+	}
+
+	.exif-panel dl div {
+		display: grid;
+		grid-template-columns: 5.2rem minmax(0, 1fr);
+		gap: 0.6rem;
+		padding: 0.26rem 0;
+		border-bottom: 1px solid var(--color-rule);
+	}
+
+	.exif-panel dt {
+		color: var(--color-muted);
+		font-size: 0.71rem;
+		text-transform: uppercase;
+	}
+
+	.exif-panel dd {
+		margin: 0;
+	}
+
+	@media (max-width: 47.49rem) {
+		.photo-frame {
+			padding: 0.3rem;
+		}
+
+		.photo-frame :global(img) {
+			max-height: none;
+		}
+
+		.photo-caption {
+			display: block;
+		}
+
+		.photo-caption time {
+			display: block;
+			margin-top: 0.25rem;
+		}
+
+		.photo-details {
+			grid-template-columns: 1fr;
+			gap: 1rem;
+			padding: 0.9rem;
+		}
+
+		.exif-panel {
+			padding-top: 0.9rem;
+			padding-left: 0;
+			border-top: 1px solid var(--color-border);
+			border-left: 0;
+		}
+	}
+</style>

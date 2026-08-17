@@ -1,0 +1,498 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+	title="Buscar fotografías"
+	description="Busca fotografías de Javier Salazar por título, descripción, categoría, año o etiqueta."
+	canonical="/buscar/"
+	noindex
+>
+	<div class="page-intro">
+		<h1 class="page-title">Buscar</h1>
+		<p class="page-kicker">Todo el archivo fotográfico</p>
+	</div>
+
+	<section class="search" data-photo-search aria-labelledby="search-heading">
+		<div class="search-panel surface-panel">
+			<h2 id="search-heading">Buscar una fotografía</h2>
+			<form class="search-form" action="/buscar/" method="get" role="search" data-search-form>
+				<label for="photo-search">Título, descripción, categoría, año o etiqueta</label>
+				<div class="search-controls">
+					<input
+						id="photo-search"
+						type="search"
+						name="q"
+						minlength="2"
+						placeholder="Por ejemplo: Alhambra, nocturna o 2019"
+						autocomplete="off"
+						enterkeyhint="search"
+						aria-describedby="search-help"
+						data-search-input
+					/>
+					<button type="submit">Buscar</button>
+				</div>
+				<p id="search-help" class="search-help">
+					Escribe al menos dos caracteres. Puedes combinar palabras; no se distinguen mayúsculas ni tildes.
+				</p>
+			</form>
+		</div>
+
+		<div class="search-feedback">
+			<p role="status" aria-live="polite" aria-atomic="true" tabindex="-1" data-search-status>
+				Escribe al menos dos caracteres para buscar en el archivo.
+			</p>
+			<button class="clear-search" type="button" data-search-clear hidden>Limpiar búsqueda</button>
+		</div>
+
+		<noscript>
+			<p class="search-notice surface-panel">
+				La búsqueda necesita JavaScript para filtrar el índice fotográfico en este dispositivo.
+			</p>
+		</noscript>
+
+		<h2 id="search-results-heading" class="visually-hidden">Resultados de búsqueda</h2>
+		<ul
+			class="search-results"
+			aria-labelledby="search-results-heading"
+			data-search-results
+			hidden
+		></ul>
+	</section>
+
+	<template data-search-result-template>
+		<li>
+			<article class="search-result">
+				<h2><a data-result-link></a></h2>
+				<p class="result-meta" data-result-meta></p>
+				<p class="result-description" data-result-description></p>
+			</article>
+		</li>
+	</template>
+</BaseLayout>
+
+<script>
+	interface SearchRecord {
+		href: string;
+		title: string;
+		description: string;
+		year: string;
+		categories: string[];
+		tags: string[];
+		publishedAt: string;
+	}
+
+	interface SearchableRecord extends SearchRecord {
+		normalizedTitle: string;
+		normalizedDescription: string;
+		normalizedTags: string[];
+		searchText: string;
+	}
+
+	interface SearchPayload {
+		photos: SearchRecord[];
+	}
+
+	const root = document.querySelector<HTMLElement>('[data-photo-search]');
+	const form = root?.querySelector<HTMLFormElement>('[data-search-form]');
+	const input = root?.querySelector<HTMLInputElement>('[data-search-input]');
+	const status = root?.querySelector<HTMLElement>('[data-search-status]');
+	const clearButton = root?.querySelector<HTMLButtonElement>('[data-search-clear]');
+	const results = root?.querySelector<HTMLUListElement>('[data-search-results]');
+	const template = document.querySelector<HTMLTemplateElement>('[data-search-result-template]');
+
+	const normalizeText = (value: string) => value
+		.normalize('NFD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.replace(/[_-]+/g, ' ')
+		.toLocaleLowerCase('es')
+		.replace(/\s+/g, ' ')
+		.trim();
+
+	let searchIndexPromise: Promise<SearchableRecord[]> | undefined;
+	let searchSequence = 0;
+	let searchTimer: number | undefined;
+
+	const loadSearchIndex = () => {
+		searchIndexPromise ??= fetch('/buscar/indice.json', {
+			headers: { Accept: 'application/json' },
+		})
+			.then((response) => {
+				if (!response.ok) throw new Error(`No se pudo cargar el índice (${response.status})`);
+				return response.json() as Promise<SearchPayload>;
+			})
+			.then(({ photos }) => photos.map((photo) => {
+				const normalizedTitle = normalizeText(photo.title);
+				const normalizedDescription = normalizeText(photo.description);
+				const normalizedTags = photo.tags.map(normalizeText);
+				const searchableCategories = photo.categories.flatMap((category) => [
+					category,
+					category.replaceAll('-', ' '),
+				]);
+
+				return {
+					...photo,
+					normalizedTitle,
+					normalizedDescription,
+					normalizedTags,
+					searchText: normalizeText([
+						photo.title,
+						photo.description,
+						photo.year,
+						...searchableCategories,
+						...photo.tags,
+					].join(' ')),
+				};
+			}))
+			.catch((error) => {
+				searchIndexPromise = undefined;
+				throw error;
+			});
+
+		return searchIndexPromise;
+	};
+
+	const buildExcerpt = (description: string, normalizedDescription: string, terms: string[]) => {
+		const maxLength = 190;
+		if (description.length <= maxLength) return description;
+
+		const matchPositions = terms
+			.map((term) => normalizedDescription.indexOf(term))
+			.filter((position) => position >= 0);
+		const firstMatch = matchPositions.length > 0 ? Math.min(...matchPositions) : 0;
+		const start = Math.max(0, firstMatch - Math.floor(maxLength * 0.35));
+		const end = Math.min(description.length, start + maxLength);
+		const excerpt = description.slice(start, end).trim();
+
+		return `${start > 0 ? '…' : ''}${excerpt}${end < description.length ? '…' : ''}`;
+	};
+
+	const updateUrl = (query: string) => {
+		const url = new URL(window.location.href);
+		if (query) url.searchParams.set('q', query);
+		else url.searchParams.delete('q');
+		window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+	};
+
+	const clearResults = () => {
+		results?.replaceChildren();
+		if (results) results.hidden = true;
+		if (clearButton) clearButton.hidden = true;
+		if (status) status.textContent = 'Escribe al menos dos caracteres para buscar en el archivo.';
+	};
+
+	const renderResults = (matches: SearchableRecord[], terms: string[]) => {
+		if (!results || !template) return;
+
+		const fragment = document.createDocumentFragment();
+		for (const photo of matches) {
+			const item = template.content.cloneNode(true) as DocumentFragment;
+			const link = item.querySelector<HTMLAnchorElement>('[data-result-link]');
+			const meta = item.querySelector<HTMLElement>('[data-result-meta]');
+			const description = item.querySelector<HTMLElement>('[data-result-description]');
+
+			if (link) {
+				link.href = photo.href;
+				link.textContent = photo.title;
+			}
+
+			if (meta) {
+				const matchingTags = photo.tags.filter((_tag, index) =>
+					terms.some((term) => photo.normalizedTags[index]?.includes(term)),
+				).slice(0, 4);
+				const details = [photo.year, ...photo.categories];
+				if (matchingTags.length > 0) details.push(`Etiquetas: ${matchingTags.join(', ')}`);
+				meta.textContent = details.join(' · ');
+			}
+
+			if (description) {
+				if (photo.description) {
+					description.textContent = buildExcerpt(
+						photo.description,
+						photo.normalizedDescription,
+						terms,
+					);
+				} else {
+					description.remove();
+				}
+			}
+
+			fragment.append(item);
+		}
+
+		results.replaceChildren(fragment);
+		results.hidden = false;
+	};
+
+	const runSearch = async (query: string, focusStatus = false) => {
+		const trimmedQuery = query.trim().replace(/\s+/g, ' ');
+		updateUrl(trimmedQuery);
+		const sequence = ++searchSequence;
+
+		if (!trimmedQuery) {
+			clearResults();
+			return;
+		}
+
+		if (clearButton) clearButton.hidden = false;
+		if (trimmedQuery.length < 2) {
+			results?.replaceChildren();
+			if (results) results.hidden = true;
+			if (status) status.textContent = 'Escribe al menos dos caracteres para iniciar la búsqueda.';
+			return;
+		}
+
+		if (status) status.textContent = `Buscando “${trimmedQuery}”…`;
+
+		try {
+			const index = await loadSearchIndex();
+			if (sequence !== searchSequence) return;
+
+			const normalizedQuery = normalizeText(trimmedQuery);
+			const terms = normalizedQuery.split(' ').filter(Boolean);
+			const matches = index
+				.filter((photo) => terms.every((term) => photo.searchText.includes(term)))
+				.map((photo) => ({
+					photo,
+					score: photo.normalizedTitle === normalizedQuery
+						? 1000
+						: photo.normalizedTitle.startsWith(normalizedQuery)
+							? 500
+							: terms.reduce(
+								(score, term) => score + (photo.normalizedTitle.includes(term) ? 50 : 0),
+								0,
+							),
+				}))
+				.sort((a, b) => b.score - a.score || b.photo.publishedAt.localeCompare(a.photo.publishedAt))
+				.map(({ photo }) => photo);
+
+			const visibleMatches = matches.slice(0, 100);
+			renderResults(visibleMatches, terms);
+			if (status) {
+				status.textContent = matches.length === 0
+					? `No hay fotografías que coincidan con “${trimmedQuery}”. Prueba con menos palabras.`
+					: matches.length > visibleMatches.length
+						? `${matches.length} coincidencias para “${trimmedQuery}”; se muestran las primeras ${visibleMatches.length}.`
+						: `${matches.length} ${matches.length === 1 ? 'fotografía encontrada' : 'fotografías encontradas'} para “${trimmedQuery}”.`;
+				if (focusStatus) status.focus();
+			}
+		} catch {
+			if (sequence !== searchSequence) return;
+			results?.replaceChildren();
+			if (results) results.hidden = true;
+			if (status) status.textContent = 'No se pudo cargar el índice de búsqueda. Inténtalo de nuevo.';
+		}
+	};
+
+	if (form && input) {
+		const initialQuery = new URL(window.location.href).searchParams.get('q')?.trim() ?? '';
+		input.value = initialQuery;
+		if (initialQuery) void runSearch(initialQuery);
+
+		form.addEventListener('submit', (event) => {
+			event.preventDefault();
+			if (searchTimer) window.clearTimeout(searchTimer);
+			void runSearch(input.value, true);
+		});
+
+		input.addEventListener('input', () => {
+			if (searchTimer) window.clearTimeout(searchTimer);
+			searchTimer = window.setTimeout(() => void runSearch(input.value), 160);
+		});
+
+		clearButton?.addEventListener('click', () => {
+			if (searchTimer) window.clearTimeout(searchTimer);
+			input.value = '';
+			void runSearch('');
+			input.focus();
+		});
+
+		window.addEventListener('popstate', () => {
+			const query = new URL(window.location.href).searchParams.get('q') ?? '';
+			input.value = query;
+			void runSearch(query);
+		});
+	}
+</script>
+
+<style>
+	.search {
+		max-inline-size: 49rem;
+		margin-inline: auto;
+	}
+
+	.search-panel {
+		padding: clamp(1rem, 3vw, 1.5rem);
+	}
+
+	.search-panel h2 {
+		margin-bottom: 0.8rem;
+		font-family: var(--font-brand);
+		font-size: 1.2rem;
+		font-weight: 400;
+	}
+
+	.search-form label {
+		display: block;
+		margin-bottom: 0.35rem;
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	.search-controls {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: 0.5rem;
+	}
+
+	.search-controls input,
+	.search-controls button {
+		min-height: 2.75rem;
+		border: 1px solid var(--color-border);
+		border-radius: 0;
+		font: inherit;
+	}
+
+	.search-controls input {
+		min-inline-size: 0;
+		padding: 0.65rem 0.75rem;
+		background: var(--color-bg);
+		color: var(--color-text);
+	}
+
+	.search-controls input:focus-visible {
+		outline: var(--focus);
+		outline-offset: 2px;
+	}
+
+	.search-controls button {
+		padding: 0.65rem 1.2rem;
+		background: var(--color-text);
+		color: var(--color-bg);
+		cursor: pointer;
+		font-size: 0.72rem;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	.search-controls button:hover {
+		background: var(--color-accent);
+	}
+
+	.search-help {
+		margin: 0.45rem 0 0;
+		color: var(--color-muted);
+		font-size: 0.72rem;
+	}
+
+	.search-feedback {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1rem;
+		min-height: 3.15rem;
+		padding: 0.85rem 0 0.65rem;
+		border-bottom: 1px solid var(--color-rule);
+	}
+
+	.search-feedback p {
+		margin: 0;
+		color: var(--color-muted);
+	}
+
+	.search-feedback p:focus {
+		outline: var(--focus);
+		outline-offset: 3px;
+	}
+
+	.clear-search {
+		flex: none;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		color: var(--color-link);
+		cursor: pointer;
+		font: inherit;
+		font-size: 0.72rem;
+		text-decoration: underline;
+		text-underline-offset: 0.2em;
+	}
+
+	.clear-search:hover {
+		color: var(--color-accent);
+	}
+
+	.search-notice {
+		margin-top: 1rem;
+		padding: 1rem;
+	}
+
+	.search-results {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0 1.5rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.search-results[hidden] {
+		display: none;
+	}
+
+	.search-result {
+		height: 100%;
+		padding: 1rem 0;
+		border-bottom: 1px solid var(--color-rule);
+	}
+
+	.search-result h2 {
+		margin-bottom: 0.18rem;
+		font-family: var(--font-brand);
+		font-size: 1.05rem;
+		font-weight: 400;
+		line-height: 1.3;
+	}
+
+	.search-result h2 a {
+		color: var(--color-text);
+	}
+
+	.result-meta {
+		margin-bottom: 0.35rem;
+		color: var(--color-muted);
+		font-size: 0.66rem;
+		letter-spacing: 0.025em;
+		line-height: 1.4;
+		text-transform: uppercase;
+	}
+
+	.result-description {
+		margin: 0;
+		color: var(--color-muted);
+		font-size: 0.78rem;
+		line-height: 1.5;
+	}
+
+	@media (max-width: 39.99rem) {
+		.search-results {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	@media (max-width: 27rem) {
+		.search-controls {
+			grid-template-columns: 1fr;
+		}
+
+		.search-feedback {
+			display: block;
+		}
+
+		.clear-search {
+			margin-top: 0.35rem;
+		}
+	}
+</style>

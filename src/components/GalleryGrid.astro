@@ -1,0 +1,109 @@
+---
+import { Picture } from 'astro:assets';
+import type { Photo } from '../lib/photos';
+import { formatLegacyDate, photoHref } from '../lib/photos';
+import { seoText } from '../lib/seo';
+
+interface Props {
+	photos: Photo[];
+}
+
+const { photos } = Astro.props;
+---
+
+<div class="gallery-grid">
+	{photos.map((photo) => (
+		<article class="gallery-card">
+			<a class="gallery-frame" href={photoHref(photo)} aria-label={`Ver ${photo.title}`}>
+				<Picture
+					src={photo.asset}
+					alt={seoText(photo.alt || photo.title)}
+					formats={['webp']}
+					widths={[240, 360, 480]}
+					sizes="(max-width: 40rem) 45vw, (max-width: 56rem) 30vw, 170px"
+					loading="lazy"
+					decoding="async"
+					quality={82}
+				/>
+			</a>
+			<div class="gallery-caption">
+				<h2><a href={photoHref(photo)}>{photo.title}</a></h2>
+				<p>{formatLegacyDate(photo.publishedAtLegacy)}</p>
+			</div>
+		</article>
+	))}
+</div>
+
+<style>
+	.gallery-grid {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 1.15rem 0.8rem;
+	}
+
+	.gallery-card {
+		min-width: 0;
+	}
+
+	.gallery-frame {
+		display: block;
+		padding: 0.3rem;
+		border: 1px solid transparent;
+		background: var(--color-surface);
+	}
+
+	.gallery-frame:hover,
+	.gallery-frame:focus-visible {
+		border-color: var(--color-border);
+	}
+
+	.gallery-frame :global(picture),
+	.gallery-frame :global(img) {
+		width: 100%;
+	}
+
+	.gallery-frame :global(img) {
+		aspect-ratio: 4 / 3;
+		border: 1px solid var(--color-border);
+		object-fit: cover;
+	}
+
+	.gallery-caption {
+		padding: 0.42rem 0.2rem 0;
+	}
+
+	.gallery-caption h2 {
+		margin-bottom: 0.1rem;
+		font-size: 0.72rem;
+		font-weight: 500;
+		line-height: 1.3;
+		text-transform: uppercase;
+	}
+
+	.gallery-caption h2 a {
+		color: var(--color-text);
+	}
+
+	.gallery-caption p {
+		margin: 0;
+		color: var(--color-muted);
+		font-size: 0.66rem;
+	}
+
+	@media (max-width: 55rem) {
+		.gallery-grid {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+	}
+
+	@media (max-width: 39.99rem) {
+		.gallery-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 0.8rem 0.55rem;
+		}
+
+		.gallery-caption h2 {
+			font-size: 0.67rem;
+		}
+	}
+</style>

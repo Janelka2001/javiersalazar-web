@@ -1,0 +1,50 @@
+---
+import { getCollection } from 'astro:content';
+import GalleryArchivePage from '../../../components/GalleryArchivePage.astro';
+import {
+	buildArchiveNavigation,
+	paginatePhotos,
+	type ArchiveNavigationData,
+	type PhotoPage,
+} from '../../../lib/galleryArchive';
+import { preparePhotos } from '../../../lib/photos';
+
+export async function getStaticPaths() {
+	const photos = preparePhotos(await getCollection('photos'));
+	const navigation = buildArchiveNavigation(photos);
+
+	return navigation.years.flatMap(({ year }) => {
+		const yearPhotos = photos.filter((photo) => photo.publishedAtLegacy.startsWith(`${year}-`));
+		const baseHref = `/archivo/${year}/`;
+
+		return paginatePhotos(yearPhotos, baseHref).map((page) => ({
+			params: {
+				year,
+				page: page.currentPage === 1 ? undefined : String(page.currentPage),
+			},
+			props: { page, navigation, year },
+		}));
+	});
+}
+
+interface Props {
+	page: PhotoPage;
+	navigation: ArchiveNavigationData;
+	year: string;
+}
+
+const { page, navigation, year } = Astro.props;
+const baseHref = `/archivo/${year}/`;
+---
+
+<GalleryArchivePage
+	{page}
+	{navigation}
+	{baseHref}
+	title={`Fotografías de ${year}`}
+	heading={`Archivo ${year}`}
+	description={`Archivo de fotografías publicadas por Javier Salazar en ${year}.`}
+	kicker={`Archivo por año · ${page.total} fotografías`}
+	sectionLabel={`Fotografías de ${year}`}
+	activeYear={year}
+/>

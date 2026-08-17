@@ -1,0 +1,57 @@
+---
+import { getImage } from 'astro:assets';
+import { getCollection } from 'astro:content';
+import PhotoView from '../components/PhotoView.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { photoHref, preparePhotos } from '../lib/photos';
+import { photoStructuredData, seoDescription, seoText } from '../lib/seo';
+
+const photos = preparePhotos(await getCollection('photos'));
+const photo = photos[0];
+
+if (!photo) {
+	throw new Error('No hay fotografías disponibles para la portada.');
+}
+
+const openGraphImage = await getImage({
+	src: photo.asset,
+	width: Math.min(photo.asset.width, 1200),
+	format: 'jpg',
+	quality: 88,
+});
+const photoImage = {
+	src: openGraphImage.src,
+	width: Number(openGraphImage.attributes.width),
+	height: Number(openGraphImage.attributes.height),
+	alt: `“${seoText(photo.title)}”, fotografía de Javier Salazar`,
+	type: 'image/jpeg',
+};
+const socialImage = {
+	src: '/og.png',
+	width: 1200,
+	height: 630,
+	alt: 'Javier Salazar · El mundo a través de mis ojos',
+	type: 'image/png',
+};
+const pageUrl = new URL('/', Astro.site!);
+const structuredData = photoStructuredData({
+	photo,
+	pageUrl,
+	imageUrl: new URL(openGraphImage.src, Astro.site!),
+	imageWidth: photoImage.width,
+	imageHeight: photoImage.height,
+});
+const description = seoDescription(
+	photo.description,
+	`“${seoText(photo.title)}”, última fotografía publicada por Javier Salazar.`,
+);
+---
+
+<BaseLayout
+	{description}
+	image={socialImage}
+	prev={photos[1] ? photoHref(photos[1]) : undefined}
+	{structuredData}
+>
+	<PhotoView photo={photo} older={photos[1]} priority />
+</BaseLayout>

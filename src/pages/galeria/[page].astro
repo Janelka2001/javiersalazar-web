@@ -1,0 +1,39 @@
+---
+import { getCollection } from 'astro:content';
+import GalleryArchivePage from '../../components/GalleryArchivePage.astro';
+import {
+	buildArchiveNavigation,
+	paginatePhotos,
+	type ArchiveNavigationData,
+	type PhotoPage,
+} from '../../lib/galleryArchive';
+import { preparePhotos } from '../../lib/photos';
+
+export async function getStaticPaths() {
+	const photos = preparePhotos(await getCollection('photos'));
+	const navigation = buildArchiveNavigation(photos);
+
+	return paginatePhotos(photos, '/galeria/').slice(1).map((page) => ({
+		params: { page: String(page.currentPage) },
+		props: { page, navigation },
+	}));
+}
+
+interface Props {
+	page: PhotoPage;
+	navigation: ArchiveNavigationData;
+}
+
+const { page, navigation } = Astro.props;
+---
+
+<GalleryArchivePage
+	{page}
+	{navigation}
+	baseHref="/galeria/"
+	title="Galería"
+	heading="Galería"
+	description="Archivo de fotografías de paisaje, naturaleza, arquitectura y fotografía nocturna de Javier Salazar."
+	kicker={`Archivo reciente · ${page.total} fotografías`}
+	sectionLabel="Fotografías recientes"
+/>

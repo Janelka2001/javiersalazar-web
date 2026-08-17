@@ -1,0 +1,21 @@
+---
+import { getCollection } from 'astro:content';
+import GalleryArchivePage from '../../components/GalleryArchivePage.astro';
+import { buildArchiveNavigation, paginatePhotos } from '../../lib/galleryArchive';
+import { preparePhotos } from '../../lib/photos';
+
+const photos = preparePhotos(await getCollection('photos'));
+const navigation = buildArchiveNavigation(photos);
+const page = paginatePhotos(photos, '/galeria/')[0];
+---
+
+<GalleryArchivePage
+	{page}
+	{navigation}
+	baseHref="/galeria/"
+	title="Galería"
+	heading="Galería"
+	description="Archivo de fotografías de paisaje, naturaleza, arquitectura y fotografía nocturna de Javier Salazar."
+	kicker={`Archivo reciente · ${photos.length} fotografías`}
+	sectionLabel="Fotografías recientes"
+/>

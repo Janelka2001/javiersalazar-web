@@ -1,0 +1,83 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const pageUrl = new URL('/derechos-y-contacto/', Astro.site!);
+const siteUrl = new URL('/', Astro.site!);
+const structuredData = [
+	{
+		'@type': 'ContactPage',
+		'@id': `${pageUrl.href}#webpage`,
+		url: pageUrl.href,
+		name: 'Derechos y contacto',
+		description: 'Información de contacto y condiciones de uso de las fotografías de Javier Salazar.',
+		inLanguage: 'es',
+		isPartOf: { '@id': `${siteUrl.href}#website` },
+		about: { '@id': `${siteUrl.href}#javier-salazar` },
+		breadcrumb: { '@id': `${pageUrl.href}#migas-de-pan` },
+	},
+	{
+		'@type': 'BreadcrumbList',
+		'@id': `${pageUrl.href}#migas-de-pan`,
+		itemListElement: [
+			{ '@type': 'ListItem', position: 1, name: 'Inicio', item: siteUrl.href },
+			{ '@type': 'ListItem', position: 2, name: 'Derechos y contacto', item: pageUrl.href },
+		],
+	},
+];
+---
+
+<BaseLayout
+	title="Derechos y contacto"
+	description="Información de contacto y condiciones de uso de las fotografías de Javier Salazar."
+	canonical="/derechos-y-contacto/"
+	{structuredData}
+>
+	<div class="page-intro">
+		<h1 class="page-title">Derechos y contacto</h1>
+	</div>
+
+	<article class="rights-content surface-panel">
+		<section aria-labelledby="derechos">
+			<h2 id="derechos">Derechos de autor</h2>
+			<p>Las fotografías publicadas en esta web se atribuyen a Javier Salazar. Salvo indicación expresa, se ofrecen con todos los derechos reservados y están protegidas por la legislación sobre propiedad intelectual.</p>
+			<p>No se autoriza su reproducción, distribución, modificación ni uso comercial sin permiso previo, excepto en los casos permitidos por la ley. Enlazar a una página de esta web sí está permitido siempre que no se altere la autoría ni se presente la fotografía como propia.</p>
+		</section>
+
+		<section aria-labelledby="solicitudes">
+			<h2 id="solicitudes">Permisos y contacto</h2>
+			<p>Para solicitar autorización, consultar un uso concreto o comunicar cualquier cuestión sobre una fotografía, escribe a <a href="mailto:javier@javiersalazar.es">javier@javiersalazar.es</a>.</p>
+			<p>Si apareces en una imagen y quieres solicitar su revisión, corrección o retirada, incluye en el mensaje el enlace de la fotografía para poder identificarla.</p>
+			<p>El enlace abre el programa de correo del dispositivo. Esta web estática no incluye formulario de contacto ni almacena mensajes.</p>
+		</section>
+
+		<section aria-labelledby="privacidad">
+			<h2 id="privacidad">Privacidad del sitio</h2>
+			<p>La web no utiliza cuentas, comentarios, base de datos ni cookies de seguimiento. Tampoco publica los datos de visitantes o comentarios recuperados del sistema antiguo.</p>
+		</section>
+	</article>
+</BaseLayout>
+
+<style>
+	.rights-content {
+		padding: clamp(1rem, 3vw, 1.5rem);
+	}
+
+	.rights-content > * {
+		max-width: 70ch;
+	}
+
+	.rights-content section + section {
+		margin-top: 1.75rem;
+	}
+
+	.rights-content h2 {
+		margin-bottom: 0.55rem;
+		font-size: 0.86rem;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	.rights-content a {
+		text-decoration: underline;
+	}
+</style>

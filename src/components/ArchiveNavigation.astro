@@ -1,0 +1,168 @@
+---
+import type { ArchiveNavigationData } from '../lib/galleryArchive';
+
+interface Props extends ArchiveNavigationData {
+	activeCategory?: string;
+	activeYear?: string;
+	archiveActive?: boolean;
+	galleryActive?: boolean;
+}
+
+const {
+	categories,
+	years,
+	activeCategory,
+	activeYear,
+	archiveActive = false,
+	galleryActive = false,
+} = Astro.props;
+---
+
+<aside class="archive-nav" aria-label="Explorar el archivo">
+	<details>
+		<summary>Explorar</summary>
+		<p class="all-photos-link">
+			<a href="/galeria/" aria-current={galleryActive ? 'page' : undefined}>Todas las fotografías</a>
+		</p>
+
+		<div class="archive-section">
+			<h2>Categorías</h2>
+			<ul>
+				{categories.map((category) => (
+					<li>
+						<a href={`/categoria/${category.slug}/`} aria-current={activeCategory === category.slug ? 'page' : undefined}>
+							<span>{category.label}</span>
+							<span class="archive-count" aria-hidden="true">{category.count}</span>
+							<span class="visually-hidden">, {category.count} {category.count === 1 ? 'fotografía' : 'fotografías'}</span>
+						</a>
+					</li>
+				))}
+			</ul>
+		</div>
+
+		<div class="archive-section">
+			<h2><a href="/archivo/" aria-current={archiveActive ? 'page' : undefined}>Archivo</a></h2>
+			<ul>
+				{years.map(({ year, count }) => (
+					<li>
+						<a href={`/archivo/${year}/`} aria-current={activeYear === year ? 'page' : undefined}>
+							<span>{year}</span>
+							<span class="archive-count" aria-hidden="true">{count}</span>
+							<span class="visually-hidden">, {count} {count === 1 ? 'fotografía' : 'fotografías'}</span>
+						</a>
+					</li>
+				))}
+			</ul>
+		</div>
+	</details>
+</aside>
+
+<style>
+	.archive-nav details {
+		border: 0;
+	}
+
+	.archive-nav summary {
+		display: none;
+	}
+
+	.all-photos-link {
+		margin-bottom: 1rem;
+		padding-bottom: 0.45rem;
+		border-bottom: 1px solid var(--color-rule);
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	.all-photos-link a[aria-current='page'] {
+		color: var(--color-accent);
+	}
+
+	.archive-section {
+		margin-bottom: 1.25rem;
+	}
+
+	.archive-section h2 {
+		margin-bottom: 0.35rem;
+		padding-bottom: 0.3rem;
+		border-bottom: 1px solid var(--color-rule);
+		font-size: 0.76rem;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	.archive-section h2 a[aria-current='page'] {
+		color: var(--color-text);
+	}
+
+	.archive-section ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.archive-section li {
+		border-bottom: 1px solid var(--color-rule);
+		font-size: 0.73rem;
+	}
+
+	.archive-section li a {
+		display: flex;
+		justify-content: space-between;
+		gap: 0.8rem;
+		padding: 0.32rem 0.15rem;
+	}
+
+	.archive-section li a[aria-current='page'] {
+		color: var(--color-accent);
+		font-weight: 600;
+	}
+
+	.archive-count {
+		font-variant-numeric: tabular-nums;
+	}
+
+	@media (min-width: 55rem) {
+		.archive-nav details > :not(summary) {
+			display: block;
+		}
+	}
+
+	@media (max-width: 54.99rem) {
+		.archive-nav {
+			border: 1px solid var(--color-border);
+			background: var(--color-surface);
+		}
+
+		.archive-nav summary {
+			display: flex;
+			align-items: center;
+			min-height: 2.75rem;
+			padding: 0.55rem 0.75rem;
+			cursor: pointer;
+			font-size: 0.72rem;
+			font-weight: 600;
+			letter-spacing: 0.05em;
+			text-transform: uppercase;
+		}
+
+		.archive-nav details > :not(summary) {
+			margin-inline: 0.75rem;
+		}
+
+		.archive-section ul {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 0 1rem;
+		}
+	}
+
+	@media (max-width: 31rem) {
+		.archive-section ul {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

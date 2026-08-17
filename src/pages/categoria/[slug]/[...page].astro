@@ -1,0 +1,50 @@
+---
+import { getCollection } from 'astro:content';
+import GalleryArchivePage from '../../../components/GalleryArchivePage.astro';
+import {
+	buildArchiveNavigation,
+	paginatePhotos,
+	type ArchiveNavigationData,
+	type PhotoPage,
+} from '../../../lib/galleryArchive';
+import { preparePhotos } from '../../../lib/photos';
+
+export async function getStaticPaths() {
+	const photos = preparePhotos(await getCollection('photos'));
+	const navigation = buildArchiveNavigation(photos);
+
+	return navigation.categories.flatMap((category) => {
+		const categoryPhotos = photos.filter((photo) => photo.categories.includes(category.slug));
+		const baseHref = `/categoria/${category.slug}/`;
+
+		return paginatePhotos(categoryPhotos, baseHref).map((page) => ({
+			params: {
+				slug: category.slug,
+				page: page.currentPage === 1 ? undefined : String(page.currentPage),
+			},
+			props: { page, navigation, category },
+		}));
+	});
+}
+
+interface Props {
+	page: PhotoPage;
+	navigation: ArchiveNavigationData;
+	category: ArchiveNavigationData['categories'][number];
+}
+
+const { page, navigation, category } = Astro.props;
+const baseHref = `/categoria/${category.slug}/`;
+---
+
+<GalleryArchivePage
+	{page}
+	{navigation}
+	{baseHref}
+	title={`${category.label} · Galería`}
+	heading={category.label}
+	description={`Fotografías de ${category.label.toLocaleLowerCase('es')} de Javier Salazar.`}
+	kicker={`Categoría · ${page.total} fotografías`}
+	sectionLabel={`Fotografías de ${category.label}`}
+	activeCategory={category.slug}
+/>

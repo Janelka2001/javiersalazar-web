@@ -1,0 +1,137 @@
+---
+import { getCollection } from 'astro:content';
+import ArchiveNavigation from '../../components/ArchiveNavigation.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { buildArchiveNavigation } from '../../lib/galleryArchive';
+import { preparePhotos } from '../../lib/photos';
+
+const photos = preparePhotos(await getCollection('photos'));
+const navigation = buildArchiveNavigation(photos);
+const archiveUrl = new URL('/archivo/', Astro.site!);
+const siteUrl = new URL('/', Astro.site!);
+const structuredData = [
+	{
+		'@type': 'CollectionPage',
+		'@id': `${archiveUrl.href}#webpage`,
+		url: archiveUrl.href,
+		name: 'Archivo fotográfico por años',
+		description: 'Archivo de fotografías de Javier Salazar organizado por año de publicación.',
+		inLanguage: 'es',
+		isPartOf: { '@id': `${siteUrl.href}#website` },
+		mainEntity: { '@id': `${archiveUrl.href}#listado` },
+	},
+	{
+		'@type': 'ItemList',
+		'@id': `${archiveUrl.href}#listado`,
+		name: 'Años del archivo fotográfico',
+		numberOfItems: navigation.years.length,
+		itemListElement: navigation.years.map(({ year }, index) => ({
+			'@type': 'ListItem',
+			position: index + 1,
+			name: year,
+			url: new URL(`/archivo/${year}/`, Astro.site!).href,
+		})),
+	},
+];
+---
+
+<BaseLayout
+	title="Archivo por años"
+	description="Archivo de fotografías de Javier Salazar organizado por año de publicación."
+	canonical="/archivo/"
+	{structuredData}
+>
+	<div class="page-intro">
+		<h1 class="page-title">Archivo</h1>
+		<p class="page-kicker">{navigation.years.length} años · {photos.length} fotografías</p>
+	</div>
+
+	<div class="archive-layout">
+		<ArchiveNavigation
+			categories={navigation.categories}
+			years={navigation.years}
+			archiveActive
+		/>
+
+		<section aria-labelledby="archivo-por-anos">
+			<h2 id="archivo-por-anos" class="archive-heading">Fotografías por año</h2>
+			<ul class="year-grid">
+				{navigation.years.map(({ year, count }) => (
+					<li>
+						<a href={`/archivo/${year}/`}>
+							<strong>{year}</strong>
+							<span>{count} {count === 1 ? 'fotografía' : 'fotografías'}</span>
+						</a>
+					</li>
+				))}
+			</ul>
+		</section>
+	</div>
+</BaseLayout>
+
+<style>
+	.archive-layout {
+		display: grid;
+		grid-template-columns: 11.5rem minmax(0, 1fr);
+		gap: 1.5rem;
+	}
+
+	.archive-heading {
+		margin-bottom: 0.8rem;
+		font-family: var(--font-brand);
+		font-size: 1.15rem;
+		font-weight: 400;
+	}
+
+	.year-grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 0.65rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.year-grid a {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 0.75rem;
+		min-height: 4rem;
+		padding: 0.8rem;
+		border: 1px solid var(--color-border);
+		background: var(--color-surface);
+	}
+
+	.year-grid strong {
+		color: var(--color-text);
+		font-family: var(--font-brand);
+		font-size: 1.15rem;
+		font-weight: 400;
+	}
+
+	.year-grid span {
+		color: var(--color-muted);
+		font-size: 0.68rem;
+		text-align: right;
+	}
+
+	@media (max-width: 54.99rem) {
+		.archive-layout {
+			grid-template-columns: 1fr;
+			gap: 1rem;
+		}
+	}
+
+	@media (max-width: 39.99rem) {
+		.year-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	@media (max-width: 25rem) {
+		.year-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

@@ -1,0 +1,116 @@
+---
+import ArchiveNavigation from './ArchiveNavigation.astro';
+import GalleryGrid from './GalleryGrid.astro';
+import Pagination from './Pagination.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import type { ArchiveNavigationData, PhotoPage } from '../lib/galleryArchive';
+import { photoHref } from '../lib/photos';
+import { seoText } from '../lib/seo';
+
+interface Props {
+	page: PhotoPage;
+	navigation: ArchiveNavigationData;
+	baseHref: string;
+	title: string;
+	heading: string;
+	description: string;
+	kicker: string;
+	sectionLabel: string;
+	activeCategory?: string;
+	activeYear?: string;
+}
+
+const {
+	page,
+	navigation,
+	baseHref,
+	title,
+	heading,
+	description,
+	kicker,
+	sectionLabel,
+	activeCategory,
+	activeYear,
+} = Astro.props;
+
+const pagedTitle = page.currentPage > 1 ? `${title} · Página ${page.currentPage}` : title;
+const pagedDescription = page.currentPage > 1
+	? `${description} Página ${page.currentPage} de ${page.lastPage}.`
+	: description;
+const pageUrl = new URL(page.url.current, Astro.site!);
+const siteUrl = new URL('/', Astro.site!);
+const listName = page.currentPage > 1 ? `${heading}, página ${page.currentPage}` : heading;
+const structuredData = [
+	{
+		'@type': 'CollectionPage',
+		'@id': `${pageUrl.href}#webpage`,
+		url: pageUrl.href,
+		name: listName,
+		description: pagedDescription,
+		inLanguage: 'es',
+		isPartOf: { '@id': `${siteUrl.href}#website` },
+		mainEntity: { '@id': `${pageUrl.href}#listado` },
+	},
+	{
+		'@type': 'ItemList',
+		'@id': `${pageUrl.href}#listado`,
+		name: listName,
+		numberOfItems: page.data.length,
+		itemListElement: page.data.map((photo, index) => ({
+			'@type': 'ListItem',
+			position: index + 1,
+			name: seoText(photo.title),
+			url: new URL(photoHref(photo), Astro.site!).href,
+		})),
+	},
+];
+---
+
+<BaseLayout
+	title={pagedTitle}
+	description={pagedDescription}
+	canonical={page.url.current}
+	prev={page.url.prev}
+	next={page.url.next}
+	{structuredData}
+>
+	<div class="page-intro">
+		<h1 class="page-title">{heading}</h1>
+		<p class="page-kicker">{kicker} · Página {page.currentPage} de {page.lastPage}</p>
+	</div>
+
+	<div class="gallery-layout">
+		<ArchiveNavigation
+			categories={navigation.categories}
+			years={navigation.years}
+			{activeCategory}
+			{activeYear}
+			galleryActive={baseHref === '/galeria/'}
+		/>
+
+		<section aria-label={sectionLabel}>
+			<GalleryGrid photos={page.data} />
+			<Pagination
+				{baseHref}
+				currentPage={page.currentPage}
+				lastPage={page.lastPage}
+				label={`Páginas de ${sectionLabel.toLocaleLowerCase('es')}`}
+			/>
+		</section>
+	</div>
+</BaseLayout>
+
+<style>
+	.gallery-layout {
+		display: grid;
+		grid-template-columns: 11.5rem minmax(0, 1fr);
+		gap: 1.5rem;
+	}
+
+	@media (max-width: 54.99rem) {
+		.gallery-layout {
+			grid-template-columns: 1fr;
+			gap: 1rem;
+		}
+	}
+</style>

@@ -1,0 +1,69 @@
+---
+import { getImage } from 'astro:assets';
+import { getCollection } from 'astro:content';
+import PhotoView from '../../../components/PhotoView.astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { photoHref, preparePhotos, type Photo } from '../../../lib/photos';
+import { photoStructuredData, seoDescription, seoText } from '../../../lib/seo';
+
+export async function getStaticPaths() {
+	const photos = preparePhotos(await getCollection('photos'));
+
+	return photos.map((photo, index) => ({
+		params: {
+			id: String(photo.legacyId),
+			slug: photo.slug,
+		},
+		props: {
+			photo,
+			older: photos[index + 1],
+			newer: photos[index - 1],
+		},
+	}));
+}
+
+interface Props {
+	photo: Photo;
+	older?: Photo;
+	newer?: Photo;
+}
+
+const { photo, older, newer } = Astro.props;
+const openGraphImage = await getImage({
+	src: photo.asset,
+	width: Math.min(photo.asset.width, 1200),
+	format: 'jpg',
+	quality: 88,
+});
+const socialImage = {
+	src: openGraphImage.src,
+	width: Number(openGraphImage.attributes.width),
+	height: Number(openGraphImage.attributes.height),
+	alt: `“${seoText(photo.title)}”, fotografía de Javier Salazar`,
+	type: 'image/jpeg',
+};
+const pageUrl = new URL(photoHref(photo), Astro.site!);
+const structuredData = photoStructuredData({
+	photo,
+	pageUrl,
+	imageUrl: new URL(openGraphImage.src, Astro.site!),
+	imageWidth: socialImage.width,
+	imageHeight: socialImage.height,
+});
+const description = seoDescription(
+	photo.description,
+	`“${seoText(photo.title)}”, fotografía de Javier Salazar.`,
+);
+---
+
+<BaseLayout
+	title={seoText(photo.title)}
+	{description}
+	image={socialImage}
+	canonical={photoHref(photo)}
+	prev={older ? photoHref(older) : undefined}
+	next={newer ? photoHref(newer) : undefined}
+	{structuredData}
+>
+	<PhotoView {photo} {older} {newer} />
+</BaseLayout>
