@@ -1,6 +1,6 @@
 # javiersalazar.es
 
-Código fuente de la web pública de fotografía de Javier Salazar.
+Código fuente de [la web pública de fotografía de Javier Salazar](https://javiersalazar.es).
 
 La web está construida con Astro y se publica como contenido estático en
 Cloudflare Pages. Este repositorio contiene únicamente el sitio de producción;
