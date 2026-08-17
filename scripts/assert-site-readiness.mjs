@@ -7,6 +7,37 @@ if (process.env.SITE_READY === 'true') {
 		await readFile(new URL('src/data/photos.json', projectRoot), 'utf8'),
 	);
 	const photos = catalog.photos ?? [];
+	const categories = catalog.categories ?? [];
+	const categoryNameKey = (value) => String(value ?? '')
+		.normalize('NFD')
+		.replace(/\p{M}/gu, '')
+		.toLocaleLowerCase('es')
+		.trim();
+	const categoryIds = categories.map((category) => category?.legacyId);
+	const categorySlugs = categories.map((category) => category?.slug);
+	const categoryNames = categories.map((category) => categoryNameKey(category?.name));
+	const knownCategorySlugs = new Set(categorySlugs);
+	const invalidCategories = categories.filter((category) => (
+		!category
+		|| !Number.isSafeInteger(category.legacyId)
+		|| category.legacyId < 1
+		|| typeof category.name !== 'string'
+		|| category.name.trim().length < 1
+		|| category.name.length > 80
+		|| typeof category.slug !== 'string'
+		|| !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(category.slug)
+		|| category.slug.length > 80
+	));
+	const duplicateCategoryIds = categoryIds.filter((value, index) => categoryIds.indexOf(value) !== index);
+	const duplicateCategorySlugs = categorySlugs.filter((value, index) => categorySlugs.indexOf(value) !== index);
+	const duplicateCategoryNames = categoryNames.filter((value, index) => categoryNames.indexOf(value) !== index);
+	const invalidPhotoCategories = photos.filter((photo) => (
+		!Array.isArray(photo.categories)
+		|| photo.categories.length < 1
+		|| photo.categories.length > 5
+		|| new Set(photo.categories).size !== photo.categories.length
+		|| photo.categories.some((slug) => typeof slug !== 'string' || !knownCategorySlugs.has(slug))
+	));
 	const assetNames = new Set(
 		await readdir(new URL('src/assets/photos/', projectRoot)),
 	);
@@ -29,6 +60,22 @@ if (process.env.SITE_READY === 'true') {
 		|| !/^\d{14}_\d+-[a-z0-9-]+\.jpg$/.test(photo.image)
 	));
 	const problems = [];
+
+	if (categories.length < 1 || categories.length > 100) {
+		problems.push(`el catálogo contiene ${categories.length} categorías; se admite entre 1 y 100`);
+	}
+
+	if (invalidCategories.length > 0) {
+		problems.push(`hay ${invalidCategories.length} categorías con esquema, nombre o slug no válido`);
+	}
+
+	if (duplicateCategoryIds.length > 0 || duplicateCategorySlugs.length > 0 || duplicateCategoryNames.length > 0) {
+		problems.push('hay IDs, slugs o nombres de categoría duplicados');
+	}
+
+	if (invalidPhotoCategories.length > 0) {
+		problems.push(`hay ${invalidPhotoCategories.length} fotografías con categorías desconocidas, repetidas o fuera del límite 1..5`);
+	}
 
 	if (photos.length < 666) {
 		problems.push(`el catálogo contiene ${photos.length} fotografías; no puede perder ninguna de las 666 históricas`);
