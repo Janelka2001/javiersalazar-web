@@ -1,5 +1,7 @@
 # javiersalazar.es
 
+[![Project QA](https://github.com/Janelka2001/javiersalazar-web/actions/workflows/project-ci.yml/badge.svg)](https://github.com/Janelka2001/javiersalazar-web/actions/workflows/project-ci.yml)
+
 Código fuente de [la web pública de fotografía de Javier Salazar](https://javiersalazar.es).
 
 La web está construida con Astro y se publica como contenido estático en
