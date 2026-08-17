@@ -109,8 +109,10 @@
         "Gota",
         "Hoja",
         "Pascuero",
-        "Roja"
-      ]
+        "Roja",
+        "Prueba técnica CMS"
+      ],
+      "alt": "Gota Roja"
     },
     {
       "legacyId": 14,
