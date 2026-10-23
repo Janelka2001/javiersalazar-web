@@ -10,7 +10,10 @@ los borradores editoriales, backups y credenciales se mantienen fuera de él.
 
 ## Desarrollo
 
-Requisitos: Node.js 24.18.0 y npm.
+Requisitos: Node.js 24.22.1 LTS (fijado en `.node-version`) y npm.
+
+La compilación local, GitHub Actions y Cloudflare Pages deben usar esta versión
+parcheada de Node. La web publicada es estática y no ejecuta un servidor Node.
 
 ```sh
 npm ci
